@@ -7,7 +7,7 @@ var fs = require("fs");
 var PATH_TO_JAVA_BRIDGE1 = process.env.PWD + "/node_modules/sybase/JavaSybaseLink/dist/JavaSybaseLink.jar";
 var PATH_TO_JAVA_BRIDGE2 = "./JavaSybaseLink/dist/JavaSybaseLink.jar";
 
-function Sybase(host, port, dbname, username, password, logTiming, pathToJavaBridge, encoding)
+function Sybase(host, port, dbname, username, password, logTiming, pathToJavaBridge, stdout_encoding, stdin_encoding)
 {
     this.connected = false;
     this.host = host;
@@ -25,7 +25,8 @@ function Sybase(host, port, dbname, username, password, logTiming, pathToJavaBri
       else
         this.pathToJavaBridge = PATH_TO_JAVA_BRIDGE2;
     }
-    this.encoding = encoding;
+    this.stdout_encoding = stdout_encoding;
+    this.stdin_encoding  = stdin_encoding;
 
     this.queryCount = 0;
     this.currentMessages = {}; // look up msgId to message sent and call back details.
@@ -50,8 +51,8 @@ Sybase.prototype.connect = function(callback)
     that.connected = true;
 
     // set up normal listeners.
-    if (that.encoding != undefined) {
-      that.javaDB.stdout.setEncoding(that.encoding);
+    if (that.stdout_encoding != undefined) {
+      that.javaDB.stdout.setEncoding(that.stdout_encoding);
     }
     that.javaDB.stdout.pipe(that.jsonParser).on("data", function(jsonMsg) { that.onSQLResonse.call(that, jsonMsg); });
     that.javaDB.stderr.on("data", function(err) { that.onSQLError.call(that, err); });
@@ -98,7 +99,12 @@ Sybase.prototype.query = function(sql, callback)
     
     this.currentMessages[msg.msgId] = msg;
 
-    this.javaDB.stdin.write(strMsg + "\n");
+    if (this.stdin_encoding != undefined) {
+      var sendBuff = new Buffer(strMsg + "\n", this.stdin_encoding);
+      this.javaDB.stdin.write(sendBuff);
+    } else {
+      this.javaDB.stdin.write(strMsg + "\n");
+    }
 };
 
 Sybase.prototype.onSQLResonse = function(jsonMsg)
