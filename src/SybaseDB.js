@@ -132,6 +132,7 @@ Sybase.prototype.onSQLError = function(data)
   for (var k in this.currentMessages){
       if (this.currentMessages.hasOwnProperty(k)) {
         this.currentMessages[k].callback(error);
+        delete this.currentMessages[k];
       }
   }
 };
